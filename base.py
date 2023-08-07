@@ -1,3 +1,6 @@
+import torch.nn as nn
+
+
 class BaseEvaluator:
     forget_set = None
     test_set = None
@@ -11,19 +14,25 @@ class BaseEvaluator:
 
 
 class AccuracyEvaluator(BaseEvaluator):
-    def __init__(self, forget_set, test_set, forget_label, test_label):
-        super.__init__(forget_set, test_set)
-        self.forget_label = forget_label
-        self.test_label = test_label
+    """
+    Accuracy Evaluator
+    """
+    def __init__(self, forget_set, test_set, forget_true, test_true):
+        super().__init__(forget_set, test_set)
+        self.forget_true = forget_true
+        self.test_true = test_true
 
-    def eval(self, unlearn_model):
+    def eval(self, unlearn_model: nn.Module):
         raise NotImplementedError("Need to fill up")
 
 
 class RetainBaseEvaluator(BaseEvaluator):
-    def __init__(self, forget_set, test_set, base_model):
-        super.__init__(forget_set, test_set)
+    """
+    Retain-model based Evaluator
+    """
+    def __init__(self, forget_set, test_set, base_model: nn.Module):
+        super().__init__(forget_set, test_set)
         self.base_model = base_model
 
-    def eval(self, unlearn_model):
+    def eval(self, unlearn_model: nn.Module):
         raise NotImplementedError("Need to fill up")
