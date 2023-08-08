@@ -1,4 +1,4 @@
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, f1_score, precision_score
 from sklearn.metrics import mean_squared_error
 import numpy as np
 import torch.nn as nn
@@ -24,13 +24,15 @@ class ClassificationAccuracyEvaluator(AccuracyEvaluator):
         forget_predict = np.argmax(forget_prob, axis=0)
         result["forget_set"] = {
             "acc": accuracy_score(self.forget_true, forget_predict),
-            "f1": f1_score(self.forget_true, forget_predict)
+            "f1": f1_score(self.forget_true, forget_predict),
+            "precision": precision_score(self.forget_true, forget_predict)
         }
         test_prob = unlearn_model(self.test_set)
         test_predict = np.argmax(test_prob, axis=0)
         result["test_set"] = {
             "acc": accuracy_score(self.test_true, test_predict),
-            "f1": f1_score(self.test_true, test_predict)
+            "f1": f1_score(self.test_true, test_predict),
+            "precision": precision_score(self.test_set, test_predict)
         }
 
 
