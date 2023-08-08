@@ -41,12 +41,10 @@ class ZeroRetrainForgetting(RetainBaseEvaluator):
     def eval(self, unlearn_model: nn.Module):
         unlearn_forget_prob = unlearn_model(self.forget_set)
         if self.norm:
-            unlearn_forget_prob = torch.sigmoid(unlearn_forget_prob)
             unlearn_forget_prob = torch.softmax(unlearn_forget_prob, dim=1)
         
         base_forget_prob = self.base_model(self.forget_set)
         if self.norm:
-            base_forget_prob = torch.sigmoid(base_forget_prob)
             base_forget_prob = torch.softmax(base_forget_prob, dim=1)
 
         zrf = 0
