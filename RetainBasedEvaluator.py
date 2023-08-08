@@ -1,5 +1,5 @@
 from base import RetainBaseEvaluator
-
+import torch
 import torch.nn as nn
 import numpy as np
 from scipy.special import rel_entr
@@ -16,10 +16,11 @@ class ActivationDistance(RetainBaseEvaluator):
         l2_loss = 0
         norm = 0
         for (k, p), (k_base, p_base) in zip(unlearn_model.named_parameters(), self.base_model.named_parameters()):
+            # print(k)
             if p.requires_grad:
                 l2_loss += (p - p_base).pow(2).sum()
                 norm += p.pow(2).sum()
-        return {"l2_loss": l2_loss, "norm_loss": np.sqrt(l2_loss/norm)}
+        return {"l2_loss": l2_loss, "norm_loss": torch.sqrt(l2_loss/norm)}
 
 
 class ZeroRetrainForgetting(RetainBaseEvaluator):
@@ -36,9 +37,10 @@ class ZeroRetrainForgetting(RetainBaseEvaluator):
         base_forget_prob = self.base_model(self.forget_set)
 
         zrf = 0
-        for idx in len(self.forget_set):
+        for idx in range(len(self.forget_set)):
             avg = 0.5 * (unlearn_forget_prob[idx] + base_forget_prob[idx])
             js = 0.5 * (rel_entr(unlearn_forget_prob[idx], avg) + rel_entr(base_forget_prob[idx], avg))
             zrf += js
+        print(zrf)
         zrf = zrf / len(self.forget_set)
         return 1 - zrf
