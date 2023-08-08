@@ -12,14 +12,14 @@ class ActivationDistance(RetainBaseEvaluator):
     def __init__(self, forget_set, test_set, base_model: nn.Module):
         super().__init__(forget_set, test_set, base_model)
 
-    def eval(self, unlearn_model: nn.Module):
+    def eval(self, unlearn_model: nn.Module, **kwargs):
         l2_loss = 0
         norm = 0
         for (k, p), (k_base, p_base) in zip(unlearn_model.named_parameters(), self.base_model.named_parameters()):
             # print(k)
             if p.requires_grad:
-                l2_loss += (p - p_base).pow(2).sum()
-                norm += p.pow(2).sum()
+                l2_loss += (p - p_base).pow(2).sum().cpu()
+                norm += p.pow(2).sum().cpu()
         return {"l2_loss": l2_loss, "norm_loss": torch.sqrt(l2_loss/norm)}
 
 
@@ -37,6 +37,7 @@ class ZeroRetrainForgetting(RetainBaseEvaluator):
     def set_norm(self, value:bool):
         self.norm = value
     
+    @torch.no_grad
     def eval(self, unlearn_model: nn.Module):
         unlearn_forget_prob = unlearn_model(self.forget_set)
         if self.norm:

@@ -28,20 +28,20 @@ class ClassificationAccuracyEvaluator(AccuracyEvaluator):
         super().__init__(forget_set, test_set, forget_label, test_label)
 
     @torch.no_grad()
-    def eval(self, unlearn_model: nn.Module, forget_loader, test_loader, device, **kwargs):
+    def eval(self, unlearn_model: nn.Module, *, device, **kwargs):
         """
         Accuracy and F1 score for unlearn model in forget dataset and test dataset
         :param unlearn_model: torch neural network for classification model returning probabilities array of each class
         :return: dictionary of score
         """
         result = {}
-        forget_acc, forget_f1 = accuracy(unlearn_model, forget_loader, device)
+        forget_acc, forget_f1 = accuracy(unlearn_model, self.forget_set, device)
         result["forget_set"] = {
             "acc": forget_acc,
             "f1": forget_f1
         }
 
-        test_acc, test_f1 = accuracy(unlearn_model, test_loader, device)
+        test_acc, test_f1 = accuracy(unlearn_model, self.test_set, device)
         result["test_set"] = {
             "acc": test_acc,
             "f1": test_f1
