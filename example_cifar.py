@@ -77,15 +77,18 @@ def main():
   for i in forget_loader.dataset:
       forget_images.append(i[0])
   forget_images = torch.stack(forget_images)
+  forget_images = forget_images.to(DEVICE)
 
   test_images = []
   for i in test_loader.dataset:
       test_images.append(i[0])
   test_images = torch.stack(test_images)
+  test_images = forget_images.to(DEVICE)
+  
   evaluators = [
       ClassificationAccuracyEvaluator(forget_loader, test_loader, None, None),
       ActivationDistance(forget_loader, test_loader, retrained_model),
-      ZeroRetrainForgetting(forget_images, test_images, retrained_model),
+      ZeroRetrainForgetting(forget_images, test_images, retrained_model).set_norm(True),
       SimpleMiaEval(forget_loader, test_loader, nn.CrossEntropyLoss(reduction="none"), n_splits=10, random_state=0)
   ]
   # ---------------- End Init evaluators ----------------

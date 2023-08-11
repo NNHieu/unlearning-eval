@@ -12,6 +12,7 @@ class ActivationDistance(RetainBaseEvaluator):
     def __init__(self, forget_set, test_set, base_model: nn.Module):
         super().__init__(forget_set, test_set, base_model)
 
+    @torch.no_grad()
     def eval(self, unlearn_model: nn.Module, **kwargs):
         l2_loss = 0
         norm = 0
@@ -31,23 +32,31 @@ class ZeroRetrainForgetting(RetainBaseEvaluator):
     """
     def __init__(self, forget_set, test_set, base_model: nn.Module):
         super().__init__(forget_set, test_set, base_model)
-
+        self.norm = False
+    
+    # Set norm to true if the classification do not return probabilities of each class (0 < class_prob < 1, sum(class_prob) = 1)
+    def set_norm(self, value:bool):
+        self.norm = value
+        return self
+    
     @torch.no_grad()
-    def eval(self, unlearn_model: nn.Module, *, device, **kwargs):
-        self.forget_set = self.forget_set.to(device)
-
+    def eval(self, unlearn_model: nn.Module, device='cuda'):
         unlearn_forget_prob = unlearn_model(self.forget_set)
-        unlearn_forget_prob = torch.softmax(unlearn_forget_prob, dim=1).cpu().numpy()
+        if self.norm:
+            unlearn_forget_prob = torch.softmax(unlearn_forget_prob, dim=1)
         
         base_forget_prob = self.base_model(self.forget_set)
-        base_forget_prob = torch.softmax(base_forget_prob, dim=1).cpu().numpy()
+        if self.norm:
+            base_forget_prob = torch.softmax(base_forget_prob, dim=1)
 
+        unlearn_forget_prob = unlearn_forget_prob.cpu().numpy()
+        base_forget_prob = base_forget_prob.cpu().numpy()
 
         zrf = 0
         for idx in range(len(self.forget_set)):
             avg = 0.5 * (unlearn_forget_prob[idx] + base_forget_prob[idx])
             js = 0.5 * (rel_entr(unlearn_forget_prob[idx], avg) + rel_entr(base_forget_prob[idx], avg))
             zrf += js
-        print(zrf)
+        
         zrf = zrf / len(self.forget_set)
         return 1 - zrf

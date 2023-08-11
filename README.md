@@ -37,6 +37,23 @@ pipeline.set_evaluators(evaluators)
 print(pipeline.eval(unlearning))
 ```
 
+example output
+```json
+
+{
+'ClassificationAccuracyEvaluator': 
+    {'forget_set': {'acc': 0.8546, 'f1': 0.8546}, 
+     'test_set': {'acc': 0.841, 'f1': 0.841}}, 
+'ActivationDistance': 
+    {'l2_loss': tensor(663.6556), 'norm_loss': tensor(0.6843)}, 
+'ZeroRetrainForgetting': 
+     array([0.9925184 , 0.9943087 , 0.9878444 , 0.98459977, 0.990898  ,
+       0.9874231 , 0.993134  , 0.9916997 , 0.99533933, 0.9941808 ]), 
+'SimpleMiaEval': array([0.512, 0.529, 0.515, 0.505, 0.52 , 0.501, 0.513, 0.504, 0.498,
+       0.503])}
+
+```
+
 Please refer to `example.py` for a complete example.
 
 ## How to define new evaluation settings
