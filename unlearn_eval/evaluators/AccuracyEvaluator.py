@@ -4,7 +4,7 @@ from sklearn.metrics import mean_squared_error
 import numpy as np
 import torch.nn as nn
 
-from base import AccuracyEvaluator
+from .base import AccuracyEvaluator
 
 def accuracy(net, loader, DEVICE):
     """Return accuracy on a dataset given by the data loader."""

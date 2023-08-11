@@ -1,4 +1,4 @@
-from base import RetainBaseEvaluator
+from .base import RetainBaseEvaluator
 import torch
 import torch.nn as nn
 import numpy as np

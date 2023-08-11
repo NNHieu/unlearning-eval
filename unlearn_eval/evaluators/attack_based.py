@@ -1,7 +1,7 @@
 import torch
 from sklearn import linear_model, model_selection
 import numpy as np
-from base import BaseEvaluator
+from .base import BaseEvaluator
 
 
 def compute_losses(net, loader, criterion, device):
