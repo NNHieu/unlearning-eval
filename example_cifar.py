@@ -5,7 +5,6 @@ from torchvision.models import resnet18
 from utils import make_folders, random_seed
 import logging
 
-
 from unlearn_eval import (
     ClassificationAccuracyEvaluator, 
     SimpleMiaEval, 
@@ -181,3 +180,11 @@ if __name__ == "__main__":
   random_seed(RANDOM_SEED)
   make_folders()
   main()
+  print("Retrained model accuracy:")
+  retrain_eval = ClassificationAccuracyEvaluator(forget_loader, test_loader, None, None)
+  res = retrain_eval.eval(retrained_model, device=DEVICE)
+  print(res)
+
+  print("Start evaluation")
+  print(pipeline.eval(unlearning))
+  print("Done evaluation")
