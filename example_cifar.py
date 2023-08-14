@@ -1,6 +1,8 @@
 import torch
 from torch import nn
 from torch import optim
+from torchvision.models import resnet18
+
 
 from unlearn_eval import (
     ClassificationAccuracyEvaluator, 
@@ -84,6 +86,8 @@ def main():
       test_images.append(i[0])
   test_images = torch.stack(test_images)
   test_images = forget_images.to(DEVICE)
+
+  dummy_model = resnet18(num_classes=10).to(DEVICE)
   
   evaluators = [
       ClassificationAccuracyEvaluator(forget_loader, test_loader, None, None),
@@ -93,6 +97,11 @@ def main():
   ]
   # ---------------- End Init evaluators ----------------
   pipeline.set_evaluators(evaluators)
+
+  print("Retrained model accuracy:")
+  retrain_eval = ClassificationAccuracyEvaluator(forget_loader, test_loader, None, None)
+  res = retrain_eval.eval(retrained_model, device=DEVICE)
+  print(res)
 
   print("Start evaluation")
   print(pipeline.eval(unlearning))
