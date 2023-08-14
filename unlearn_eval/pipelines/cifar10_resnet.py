@@ -10,7 +10,10 @@ from torch.utils.data import DataLoader
 
 import torchvision
 from torchvision import transforms
-from torchvision.models import resnet18
+from torchvision.models import resnet18, ResNet18_Weights
+import tqdm
+import logging
+logger = logging.getLogger('logger')
 
 from unlearn_eval import (
     ClassificationAccuracyEvaluator, 
@@ -24,22 +27,29 @@ def unlearning(net, retain, forget, validation):
 
 def accuracy(net, loader, DEVICE):
     """Return accuracy on a dataset given by the data loader."""
-    correct = 0
-    total = 0
+    total_loss, total_sample, total_acc = 0, 0, 0
+    net.eval()
     for inputs, targets in loader:
         inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
         outputs = net(inputs)
         _, predicted = outputs.max(1)
-        total += targets.size(0)
-        correct += predicted.eq(targets).sum().item()
-    return correct / total
+        total_loss = nn.CrossEntropyLoss()(outputs, targets)
+        total_sample += targets.size(0)
+        total_acc += predicted.eq(targets).sum().item()
+    return (total_loss/ total_sample, total_acc / total_sample, total_sample)
+    # return correct / total
 
 class Cifar10_Resnet18_Set():
 
     def __init__(self, data_root, data_plit_RNG, index_local_path, model_path, download_index=False) -> None:
         self._prepare_main_datasets(data_root=data_root, RNG=data_plit_RNG)
+        
         self._generate_forget_set(index_local_path=index_local_path, download_index=download_index)
-        print("Generated forget set")
+        
+        print("Done generate forget set")
+        
+        self.forget_loader, self.retain_loader, self.test_loader, self.val_loader = self.get_dataloader(data_plit_RNG)
+        
         self._prepare_pretrained_weights(local_path=model_path, download=False)
         print("Download pretrained weights")
 
@@ -59,7 +69,11 @@ class Cifar10_Resnet18_Set():
             root=data_root, train=False, download=True, transform=normalize
         )
         self.test_set, self.val_set = torch.utils.data.random_split(held_out, [0.5, 0.5], generator=RNG)
-    
+        
+        # self._generate_forget_set()
+        
+        
+        
     def _generate_forget_set(self, download_index=False, index_local_path="forget_idx.npy"):
         # download the forget and retain index split
         if download_index:
@@ -83,6 +97,10 @@ class Cifar10_Resnet18_Set():
         # split train set into a forget and a retain set
         self.forget_set = torch.utils.data.Subset(self.train_set, forget_idx)
         self.retain_set = torch.utils.data.Subset(self.train_set, retain_idx)
+        
+        label_forget_set = [label for idx, (_, label) in enumerate(self.forget_set) ]
+        logger.warning(f"Label distribution of forget set: {np.unique(label_forget_set, return_counts=True)}")
+
 
     def get_dataloader(self, RNG):
         train_loader = DataLoader(self.train_set, batch_size=128, shuffle=True, num_workers=2)
@@ -107,14 +125,23 @@ class Cifar10_Resnet18_Set():
         if download:
             if not os.path.exists(local_path):
                 self._download_pretrained_model(save_path=local_path)
+            logger.info(f"Download pre-trained weights from local file: {local_path}")
+        logger.info(f"Set weights_pretrained from local file: {local_path}")
         self.weights_pretrained = torch.load(local_path)
 
     def get_init_model(self):
+        logger.info(f"Init model without pretrained weights")
         model = resnet18(weights=None, num_classes=10)
+        # model = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
+        # in_features = model.fc.in_features
+        # model.fc = nn.Linear(in_features, 10)
+        # model = resnet18(pretrained=True, num_classes=10)
         return model
 
     def get_pretrained_model(self):
         # load model with pre-trained weights
+        # TODO, check acc w-o pretrained model
+        # return self.get_init_model()
         model = resnet18(weights=None, num_classes=10)
         model.load_state_dict(self.weights_pretrained)
         return model
@@ -125,7 +152,6 @@ class Cifar10_Resnet18_Set():
         In this version, this function just return the original model.
         '''
         return self.get_pretrained_model()
-
 
 
 if __name__ == "__main__":

@@ -1,6 +1,10 @@
 import torch
 from torch import nn
 from torch import optim
+from torchvision.models import resnet18
+from utils import make_folders, random_seed
+import logging
+
 
 from unlearn_eval import (
     ClassificationAccuracyEvaluator, 
@@ -10,13 +14,15 @@ from unlearn_eval import (
     Cifar10_Resnet18_Set,
     Pipeline
 )
+logger = logging.getLogger('logger')
 
 DEVICE = "cuda:1" if torch.cuda.is_available() else "cpu"
 print("Running on device:", DEVICE.upper())
 
 # manual random seed is used for dataset partitioning
 # to ensure reproducible results across runs
-RNG = torch.Generator().manual_seed(42)
+RANDOM_SEED = 42
+RNG = torch.Generator().manual_seed(RANDOM_SEED)
 
 def unlearning(net, retain, forget, validation):
     """Unlearning by fine-tuning.
@@ -60,16 +66,81 @@ def unlearning(net, retain, forget, validation):
     net.eval()
     return net
 
+def prob_unlearn(net, retain, forget, validation):
+  
+  
+    forget_epochs = 1
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(net.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=forget_epochs)
+    net.train()
+    for id_ep in range(forget_epochs):
+        running_loss = 0
+        for inputs, targets in forget:
+            inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
+            
+            optimizer.zero_grad()
+            outputs = net(inputs)
+            
+            log_softmax_outputs = nn.LogSoftmax(dim=1)(outputs)
+            
+            # Create labels with equal values of 1 / num_classes
+            batch_size = inputs.size(0)
+            num_classes = log_softmax_outputs.size(1)
+            equal_labels = torch.full((batch_size, num_classes), 1 / num_classes, device=DEVICE)
+            # import IPython; IPython.embed()
+            # Convert equal value labels to log probabilities
+            log_prob_labels = torch.log(equal_labels)
+            # import IPython; IPython.embed()
+            # exit(0)
+            
+            loss = nn.KLDivLoss(reduction='batchmean', log_target=True)(log_softmax_outputs, log_prob_labels)  # Calculate KLDivLoss
+            if torch.any(torch.isnan(loss)):
+                print("labels: ")
+                print((torch.abs(log_prob_labels) < 1e-9).nonzero(as_tuple=True))
+                raise Exception("start error")
+            loss.backward()
+            optimizer.step()
+            
+            running_loss += loss.item()
+        scheduler.step()
+        # print(f"Epoch: {id_ep} Loss: {running_loss}")  
+    # return net
+    retain_epochs = 5
+    optimizer = optim.SGD(net.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=retain_epochs)
+
+    for _ in range(retain_epochs):
+        for inputs, targets in retain:
+            inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
+            optimizer.zero_grad()
+            outputs = net(inputs)
+            loss = criterion(outputs, targets)
+            loss.backward()
+            optimizer.step()
+        scheduler.step()
+
+    net.eval()
+    return net
+
 def main():
-  data_model_set = Cifar10_Resnet18_Set(data_root='data/cifar10', 
+  data_model_set = Cifar10_Resnet18_Set(data_root='./data/cifar10', 
                                         data_plit_RNG=RNG,
-                                        index_local_path='data/cifar10/forget_idx.npy',
-                                        model_path='data/cifar10/weights_resnet18_cifar10.pth',
+                                        index_local_path='/home/hpc/phinv/unlearning-eval/forget_idx_class_0.npy',
+                                        # model_path='./models/weights_resnet18_cifar10.pth',
+                                        model_path='/home/hpc/phinv/unlearning-eval/models/retrain_weights_resnet18_cifar10.pth',
+                                        # model_path='./models/retrain_weights_resnet18_cifar10.pth',
+                                        # /home/hpc/phinv/unlearning-eval/models/retrain_weights_resnet18_cifar10.pth
                                         download_index=False)
   pipeline = Pipeline(DEVICE, RNG, data_model_set)
+#   pipeline.training_retain_from_scratch(retain_epochs=100)
+#   exit(0)
+
 
   # ---------------- Begin Init evaluators ----------------
-  forget_loader, _, test_loader, _ = data_model_set.get_dataloader(RNG)
+  forget_loader, retain_loader, test_loader, val_loader = data_model_set.get_dataloader(RNG)
+  
   retrained_model = data_model_set.get_retrained_model()
   retrained_model.to(DEVICE)
 
@@ -84,19 +155,29 @@ def main():
       test_images.append(i[0])
   test_images = torch.stack(test_images)
   test_images = forget_images.to(DEVICE)
+
+  dummy_model = resnet18(num_classes=10).to(DEVICE)
   
   evaluators = [
-      ClassificationAccuracyEvaluator(forget_loader, test_loader, None, None),
-      ActivationDistance(forget_loader, test_loader, retrained_model),
-      ZeroRetrainForgetting(forget_images, test_images, retrained_model).set_norm(True),
-      SimpleMiaEval(forget_loader, test_loader, nn.CrossEntropyLoss(reduction="none"), n_splits=10, random_state=0)
+      # ClassificationAccuracyEvaluator(forget_loader, test_loader, None, None),
+      # ActivationDistance(forget_loader, test_loader, retrained_model),
+      ZeroRetrainForgetting(forget_images, test_images, dummy_model).set_norm(True),
+      # SimpleMiaEval(forget_loader, test_loader, nn.CrossEntropyLoss(reduction="none"), n_splits=10, random_state=0)
   ]
   # ---------------- End Init evaluators ----------------
   pipeline.set_evaluators(evaluators)
 
-  print("Start evaluation")
-  print(pipeline.eval(unlearning))
+#   print("Retrained model accuracy: ")
+#   retrain_eval = ClassificationAccuracyEvaluator(forget_loader, test_loader, None, None)
+#   res = retrain_eval.eval(retrained_model, device=DEVICE)
+#   print(res)
+
+  logger.warning("Start evaluation")
+  # print(pipeline.eval(unlearning))
+  print(pipeline.eval(prob_unlearn))
   print("Done evaluation")
 
 if __name__ == "__main__":
+  random_seed(RANDOM_SEED)
+  make_folders()
   main()

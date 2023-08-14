@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from scipy.special import rel_entr
+from torch.nn.functional import kl_div
 
 
 class ActivationDistance(RetainBaseEvaluator):
@@ -49,13 +50,17 @@ class ZeroRetrainForgetting(RetainBaseEvaluator):
         if self.norm:
             base_forget_prob = torch.softmax(base_forget_prob, dim=1)
 
-        unlearn_forget_prob = unlearn_forget_prob.cpu().numpy()
-        base_forget_prob = base_forget_prob.cpu().numpy()
+        unlearn_forget_prob = unlearn_forget_prob.cpu()
+        base_forget_prob = base_forget_prob.cpu()
 
         zrf = 0
         for idx in range(len(self.forget_set)):
             avg = 0.5 * (unlearn_forget_prob[idx] + base_forget_prob[idx])
-            js = 0.5 * (rel_entr(unlearn_forget_prob[idx], avg) + rel_entr(base_forget_prob[idx], avg))
+            js = 0.5 * (kl_div(unlearn_forget_prob[idx], avg) + kl_div(base_forget_prob[idx], avg))
+            print(kl_div(unlearn_forget_prob[idx], avg))
+            import IPython
+            IPython.embed()
+            exit(0)
             zrf += js
         
         zrf = zrf / len(self.forget_set)

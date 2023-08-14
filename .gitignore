@@ -1,3 +1,6 @@
 *.pth
 data/
 __pycache__/
+logs/
+models/
+*.npy

@@ -38,13 +38,15 @@ class ClassificationAccuracyEvaluator(AccuracyEvaluator):
         forget_acc, forget_f1 = accuracy(unlearn_model, self.forget_set, device)
         result["forget_set"] = {
             "acc": forget_acc,
-            "f1": forget_f1
+            "f1": forget_f1,
+            "len": len(self.forget_set.dataset)
         }
 
         test_acc, test_f1 = accuracy(unlearn_model, self.test_set, device)
         result["test_set"] = {
             "acc": test_acc,
-            "f1": test_f1
+            "f1": test_f1,
+            "len": len(self.test_set.dataset)
         }
 
         # # forget_prob = unlearn_model(self.forget_set)
