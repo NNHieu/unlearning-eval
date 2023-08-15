@@ -123,12 +123,43 @@ def prob_unlearn(net, retain, forget, validation):
     net.eval()
     return net
 
+def rejoin_unlearn(net, retain, forget, validation):
+  
+    rejoin_epoch = 5
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(net.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=rejoin_epoch)
+    net.train()
+
+    for _ in range(rejoin_epoch):
+        # for inputs, targets in retain:
+        #     inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
+        #     optimizer.zero_grad()
+        #     outputs = net(inputs)
+        #     loss = criterion(outputs, targets)
+        #     loss.backward()
+        #     optimizer.step()
+        # scheduler.step()
+
+        for inputs, targets in forget:
+            inputs, targets = inputs.to(DEVICE), targets.to(DEVICE)
+            optimizer.zero_grad()
+            outputs = net(inputs)
+            loss = criterion(outputs, targets)
+            loss.backward()
+            optimizer.step()
+        scheduler.step()
+
+    return net
+
 def main():
   data_model_set = Cifar10_Resnet18_Set(data_root='./data/cifar10', 
                                         data_plit_RNG=RNG,
-                                        index_local_path='/home/hpc/phinv/unlearning-eval/forget_idx_class_0.npy',
+                                        index_local_path='/home/hpc/phinv/unlearning-eval/data/cifar10_forget_idx_class_0_5000.npy',
+                                        # index_local_path='/home/hpc/phinv/unlearning-eval/data/cifar10_forget_idx_class_0_4000__1_1000.npy',
                                         # model_path='./models/weights_resnet18_cifar10.pth',
-                                        model_path='/home/hpc/phinv/unlearning-eval/models/retrain_weights_resnet18_cifar10.pth',
+                                        model_path='/home/hpc/phinv/unlearning-eval/models/weights_resnet18_cifar10.pth',
                                         # model_path='./models/retrain_weights_resnet18_cifar10.pth',
                                         # /home/hpc/phinv/unlearning-eval/models/retrain_weights_resnet18_cifar10.pth
                                         download_index=False)
@@ -173,13 +204,21 @@ def main():
 
   logger.warning("Start evaluation")
   # print(pipeline.eval(unlearning))
-  print(pipeline.eval(prob_unlearn))
-  print("Done evaluation")
+  # print(pipeline.eval(prob_unlearn))
+  ft_model = pipeline.eval(prob_unlearn)
+  print("Done prob unlearn")
+
+  data_model_set.set_model(ft_model)
+  rejoin_model = pipeline.eval(rejoin_unlearn)
+  
+  print("Done rejoin unlearn")
 
 if __name__ == "__main__":
   random_seed(RANDOM_SEED)
   make_folders()
   main()
+  exit(0)
+
   print("Retrained model accuracy:")
   retrain_eval = ClassificationAccuracyEvaluator(forget_loader, test_loader, None, None)
   res = retrain_eval.eval(retrained_model, device=DEVICE)

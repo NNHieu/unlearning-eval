@@ -102,15 +102,15 @@ class Cifar10_Resnet18_Set():
         logger.warning(f"Label distribution of forget set: {np.unique(label_forget_set, return_counts=True)}")
 
 
-    def get_dataloader(self, RNG):
-        train_loader = DataLoader(self.train_set, batch_size=128, shuffle=True, num_workers=2)
-        test_loader = DataLoader(self.test_set, batch_size=128, shuffle=False, num_workers=2)
-        val_loader = DataLoader(self.val_set, batch_size=128, shuffle=False, num_workers=2)
+    def get_dataloader(self, RNG, batch_size=256):
+        train_loader = DataLoader(self.train_set, batch_size=batch_size, shuffle=True, num_workers=2)
+        test_loader = DataLoader(self.test_set, batch_size=batch_size, shuffle=False, num_workers=2)
+        val_loader = DataLoader(self.val_set, batch_size=batch_size, shuffle=False, num_workers=2)
         forget_loader = DataLoader(
-            self.forget_set, batch_size=128, shuffle=True, num_workers=2
+            self.forget_set, batch_size=batch_size, shuffle=True, num_workers=2
         )
         retain_loader = DataLoader(
-            self.retain_set, batch_size=128, shuffle=True, num_workers=2, generator=RNG
+            self.retain_set, batch_size=batch_size, shuffle=True, num_workers=2, generator=RNG
         )
         return forget_loader, retain_loader, test_loader, val_loader
     
@@ -137,6 +137,11 @@ class Cifar10_Resnet18_Set():
         # model.fc = nn.Linear(in_features, 10)
         # model = resnet18(pretrained=True, num_classes=10)
         return model
+    
+    def set_model(self, model):
+        self.weights_pretrained = copy.deepcopy(model.state_dict())
+        # model.load_state_dict(self.weights_pretrained)
+        # return model
 
     def get_pretrained_model(self):
         # load model with pre-trained weights
