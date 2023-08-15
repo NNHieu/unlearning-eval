@@ -39,6 +39,9 @@ class ZeroRetrainForgetting(RetainBaseEvaluator):
     def set_norm(self, value:bool):
         self.norm = value
         return self
+
+    def kl_divergence(self, p, q):
+        return sum(p[i] * torch.log2(p[i]/q[i]) for i in range(len(p)))
     
     @torch.no_grad()
     def eval(self, unlearn_model: nn.Module, device='cuda'):
@@ -53,15 +56,12 @@ class ZeroRetrainForgetting(RetainBaseEvaluator):
         unlearn_forget_prob = unlearn_forget_prob.cpu()
         base_forget_prob = base_forget_prob.cpu()
 
+        avg = 0.5 * torch.add(unlearn_forget_prob, base_forget_prob)
+
         zrf = 0
         for idx in range(len(self.forget_set)):
-            avg = 0.5 * (unlearn_forget_prob[idx] + base_forget_prob[idx])
-            js = 0.5 * (kl_div(unlearn_forget_prob[idx], avg) + kl_div(base_forget_prob[idx], avg))
-            print(kl_div(unlearn_forget_prob[idx], avg))
-            import IPython
-            IPython.embed()
-            exit(0)
+            avg = 0.5 * torch.add(unlearn_forget_prob[idx], base_forget_prob[idx])
+            js = 0.5 * (self.kl_divergence(unlearn_forget_prob[idx], avg) + self.kl_divergence(base_forget_prob[idx], avg))
             zrf += js
-        
-        zrf = zrf / len(self.forget_set)
-        return 1 - zrf
+
+        return 1 - zrf/len(self.forget_set)
