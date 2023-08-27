@@ -10,12 +10,13 @@ from unlearn_eval import (
     SimpleMiaEval, 
     ActivationDistance, 
     ZeroRetrainForgetting,
+    LIRA,
     Cifar10_Resnet18_Set,
     Pipeline
 )
 logger = logging.getLogger('logger')
 
-DEVICE = "cuda:1" if torch.cuda.is_available() else "cpu"
+DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 print("Running on device:", DEVICE.upper())
 
 # manual random seed is used for dataset partitioning
@@ -156,13 +157,13 @@ def rejoin_unlearn(net, retain, forget, validation):
 def main():
   data_model_set = Cifar10_Resnet18_Set(data_root='./data/cifar10', 
                                         data_plit_RNG=RNG,
-                                        index_local_path='/home/hpc/phinv/unlearning-eval/data/cifar10_forget_idx_class_0_5000.npy',
+                                        index_local_path='./data/cifar10_forget_idx_class_0_5000.npy',
                                         # index_local_path='/home/hpc/phinv/unlearning-eval/data/cifar10_forget_idx_class_0_4000__1_1000.npy',
                                         # model_path='./models/weights_resnet18_cifar10.pth',
-                                        model_path='/home/hpc/phinv/unlearning-eval/models/weights_resnet18_cifar10.pth',
+                                        model_path='./models/weights_resnet18_cifar10.pth',
                                         # model_path='./models/retrain_weights_resnet18_cifar10.pth',
                                         # /home/hpc/phinv/unlearning-eval/models/retrain_weights_resnet18_cifar10.pth
-                                        download_index=False)
+                                        download_index=True)
   pipeline = Pipeline(DEVICE, RNG, data_model_set)
 #   pipeline.training_retain_from_scratch(retain_epochs=100)
 #   exit(0)
@@ -191,7 +192,8 @@ def main():
   evaluators = [
       # ClassificationAccuracyEvaluator(forget_loader, test_loader, None, None),
       # ActivationDistance(forget_loader, test_loader, retrained_model),
-      ZeroRetrainForgetting(forget_images, test_images, dummy_model).set_norm(True),
+      # ZeroRetrainForgetting(forget_images, test_images, dummy_model).set_norm(True),
+      LIRA(forget_loader, test_loader, data_model_set.forget_idx, data_model_set.train_set, data_model_set.train_set, num_exps=16),
       # SimpleMiaEval(forget_loader, test_loader, nn.CrossEntropyLoss(reduction="none"), n_splits=10, random_state=0)
   ]
   # ---------------- End Init evaluators ----------------
@@ -204,14 +206,14 @@ def main():
 
   logger.warning("Start evaluation")
   # print(pipeline.eval(unlearning))
-  # print(pipeline.eval(prob_unlearn))
-  ft_model = pipeline.eval(prob_unlearn)
+  print(pipeline.eval(prob_unlearn))
+  # ft_model = pipeline.eval(prob_unlearn)
   print("Done prob unlearn")
 
-  data_model_set.set_model(ft_model)
-  rejoin_model = pipeline.eval(rejoin_unlearn)
+  # data_model_set.set_model(ft_model)
+  # rejoin_model = pipeline.eval(rejoin_unlearn)
   
-  print("Done rejoin unlearn")
+  # print("Done rejoin unlearn")
 
 if __name__ == "__main__":
   random_seed(RANDOM_SEED)

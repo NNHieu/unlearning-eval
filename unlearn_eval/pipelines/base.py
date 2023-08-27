@@ -74,8 +74,8 @@ class Pipeline():
         logger.warning(f"Retain set accuracy: {accuracy(ft_model, retain_loader, self.DEVICE)}")
         logger.warning(f"Test set accuracy: {accuracy(ft_model, test_loader, self.DEVICE)}")
         logger.warning(f"Forget set accuracy: {accuracy(ft_model, forget_loader, self.DEVICE)}")
-        return ft_model
-        exit(0)
+        # return ft_model
+        # exit(0)
         # evaluate the unlearned model
         results = {}
         for evaluator in self._evaluators:
