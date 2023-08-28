@@ -34,20 +34,46 @@ if __name__ == "__main__":
     labels_list = np.array([label for _, label in train_dataset])
 
     # samples_forget_set = [5000, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    samples_forget_set = [4000, 1000, 0, 0, 0, 0, 0, 0, 0, 0]
+    # samples_forget_set = [4000, 1000, 0, 0, 0, 0, 0, 0, 0, 0]
+    # samples_forget_set = [3000, 1000, 1000, 0, 0, 0, 0, 0, 0, 0]
+    # samples_forget_set = [2000, 1000, 1000, 1000, 0, 0, 0, 0, 0, 0]
+    # samples_forget_set = [1000, 1000, 1000, 1000, 1000, 0, 0, 0, 0, 0]
+    # samples_forget_set = [1000, 1000, 1000, 1000, 500, 500, 0, 0, 0, 0]
+    # samples_forget_set = [1000, 1000, 1000, 500, 500, 500, 500, 0, 0, 0]
+    # samples_forget_set = [1000, 1000, 500, 500, 500, 500, 500, 500, 0, 0]
+    # samples_forget_set = [1000, 500, 500, 500, 500, 500, 500, 500, 500, 0]
+    # samples_forget_set = [500, 500, 500, 500, 500, 500, 500, 500, 500, 500]
 
-    print(len(samples_forget_set), sum(samples_forget_set))
-    index_forget_set = []
+    samples_forget_set = []
+    samples_forget_set.append([5000, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    samples_forget_set.append([4000, 1000, 0, 0, 0, 0, 0, 0, 0, 0])
+    samples_forget_set.append([3000, 1000, 1000, 0, 0, 0, 0, 0, 0, 0])
+    samples_forget_set.append([2000, 1000, 1000, 1000, 0, 0, 0, 0, 0, 0])
+    samples_forget_set.append([1000, 1000, 1000, 1000, 1000, 0, 0, 0, 0, 0])
+    samples_forget_set.append([1000, 1000, 1000, 1000, 500, 500, 0, 0, 0, 0])
+    samples_forget_set.append([1000, 1000, 1000, 500, 500, 500, 500, 0, 0, 0])
+    samples_forget_set.append([1000, 1000, 500, 500, 500, 500, 500, 500, 0, 0])
+    samples_forget_set.append([1000, 500, 500, 500, 500, 500, 500, 500, 500, 0])
+    samples_forget_set.append([500, 500, 500, 500, 500, 500, 500, 500, 500, 500])
 
-    for label in range(10):
-        if samples_forget_set[label] == 0:
-            continue
-        index_labels = np.where(labels_list == label)[0]
-        print(len(index_labels), index_labels[:10], train_dataset[index_labels[0]][1])
-        selected_sample_ids = random.sample(list(index_labels), samples_forget_set[label])
-        index_forget_set.extend(selected_sample_ids)
+    for i in range(len(samples_forget_set)):
+        samples_forget_set_i = np.array(samples_forget_set[i])
+        print(np.sum(samples_forget_set_i), samples_forget_set_i)
+    
 
-    index_forget_set = sorted(index_forget_set)
-    print(len(index_forget_set), index_forget_set[:10])
+        index_forget_set = []
+
+        for label in range(10):
+            if samples_forget_set_i[label] == 0:
+                continue
+            index_labels = np.where(labels_list == label)[0]
+            # print(len(index_labels), index_labels[:10], train_dataset[index_labels[0]][1])
+            selected_sample_ids = random.sample(list(index_labels), samples_forget_set_i[label])
+            index_forget_set.extend(selected_sample_ids)
+
+        index_forget_set = sorted(index_forget_set)
+        print(len(index_forget_set), index_forget_set[:10])
+        np.save(f'./data/cifar10_forget_idx_{"_".join([str(x) for x in samples_forget_set_i])}.npy', index_forget_set)
+
     # np.save(f'./data/cifar10_forget_idx_class_0_5000.npy', index_forget_set)
-    np.save(f'./data/cifar10_forget_idx_class_0_4000__1_1000.npy', index_forget_set)
+    # np.save(f'./data/cifar10_forget_idx_class_0_4000__1_1000.npy', index_forget_set)

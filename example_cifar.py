@@ -124,7 +124,7 @@ def prob_unlearn(net, retain, forget, validation):
     return net
 
 def rejoin_unlearn(net, retain, forget, validation):
-  
+    
     rejoin_epoch = 5
 
     criterion = nn.CrossEntropyLoss()
@@ -153,11 +153,13 @@ def rejoin_unlearn(net, retain, forget, validation):
 
     return net
 
-def main():
+def main(unlearn_id_path="/home/hpc/phinv/unlearning-eval/data/cifar10_forget_idx_class_0_4000__1_1000.npy"):
+  logger.warning(f"Start unlearn in file: {unlearn_id_path}")
+
   data_model_set = Cifar10_Resnet18_Set(data_root='./data/cifar10', 
                                         data_plit_RNG=RNG,
-                                        index_local_path='/home/hpc/phinv/unlearning-eval/data/cifar10_forget_idx_class_0_5000.npy',
-                                        # index_local_path='/home/hpc/phinv/unlearning-eval/data/cifar10_forget_idx_class_0_4000__1_1000.npy',
+                                        # index_local_path='/home/hpc/phinv/unlearning-eval/data/cifar10_forget_idx_class_0_5000.npy',
+                                        index_local_path=unlearn_id_path,
                                         # model_path='./models/weights_resnet18_cifar10.pth',
                                         model_path='/home/hpc/phinv/unlearning-eval/models/weights_resnet18_cifar10.pth',
                                         # model_path='./models/retrain_weights_resnet18_cifar10.pth',
@@ -189,18 +191,18 @@ def main():
   dummy_model = resnet18(num_classes=10).to(DEVICE)
   
   evaluators = [
-      # ClassificationAccuracyEvaluator(forget_loader, test_loader, None, None),
+      ClassificationAccuracyEvaluator(forget_loader, test_loader, None, None),
       # ActivationDistance(forget_loader, test_loader, retrained_model),
-      ZeroRetrainForgetting(forget_images, test_images, dummy_model).set_norm(True),
+      ZeroRetrainForgetting(forget_images, test_images, retrained_model).set_norm(True),
       # SimpleMiaEval(forget_loader, test_loader, nn.CrossEntropyLoss(reduction="none"), n_splits=10, random_state=0)
   ]
   # ---------------- End Init evaluators ----------------
   pipeline.set_evaluators(evaluators)
 
 #   print("Retrained model accuracy: ")
-#   retrain_eval = ClassificationAccuracyEvaluator(forget_loader, test_loader, None, None)
-#   res = retrain_eval.eval(retrained_model, device=DEVICE)
-#   print(res)
+  # retrain_eval = ClassificationAccuracyEvaluator(forget_loader, test_loader, None, None)
+  # res = retrain_eval.eval(dummy_model, device=DEVICE)
+  # print(res)
 
   logger.warning("Start evaluation")
   # print(pipeline.eval(unlearning))
@@ -208,14 +210,25 @@ def main():
   ft_model = pipeline.eval(prob_unlearn)
   print("Done prob unlearn")
 
-  data_model_set.set_model(ft_model)
-  rejoin_model = pipeline.eval(rejoin_unlearn)
+  # data_model_set.set_model(ft_model)
+  # rejoin_model = pipeline.eval(rejoin_unlearn)
   
-  print("Done rejoin unlearn")
+  # print("Done rejoin unlearn")
 
 if __name__ == "__main__":
   random_seed(RANDOM_SEED)
   make_folders()
+  import glob
+  import os
+  list_unlearn_id_path = glob.glob(os.path.join("/home/hpc/phinv/unlearning-eval/data", "**", "*.npy"), recursive=True)
+  list_unlearn_id_path = sorted(list_unlearn_id_path)
+  # print(list_unlearn_id_path)
+  for id_file, unlearn_id_path in enumerate(list_unlearn_id_path):
+    # print(id_file, unlearn_id_path)
+    # if id_file in [1, 5, 10]:
+    main(unlearn_id_path)
+    #
+  exit(0)
   main()
   exit(0)
 

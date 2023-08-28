@@ -9,7 +9,7 @@ from utils import accuracy
 logger = logging.getLogger('logger')
 import wandb
 
-def accuracy(net, loader, DEVICE, mis=False):
+def accuracy(net, loader, DEVICE, mis=True):
     """Return accuracy on a dataset given by the data loader."""
     total_loss, total_sample, total_acc = 0, 0, 0
     net.eval()
@@ -74,14 +74,15 @@ class Pipeline():
         logger.warning(f"Retain set accuracy: {accuracy(ft_model, retain_loader, self.DEVICE)}")
         logger.warning(f"Test set accuracy: {accuracy(ft_model, test_loader, self.DEVICE)}")
         logger.warning(f"Forget set accuracy: {accuracy(ft_model, forget_loader, self.DEVICE)}")
-        return ft_model
-        exit(0)
+        # return ft_model
+        # exit(0)
         # evaluate the unlearned model
         results = {}
         for evaluator in self._evaluators:
             results[evaluator.__class__.__name__] = evaluator.eval(ft_model, device=self.DEVICE)
-        
-        return results
+        print(results)
+        # return results
+        return ft_model
     
     def training_retain_from_scratch(self, retain_epochs=100):
         # train from scratch
@@ -96,7 +97,7 @@ class Pipeline():
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[50, 100], gamma=0.1)
         
         
-        wandb.init(project="machine-unlearning", entity="mtuann", name="Retrain_5000_0")
+        wandb.init(project="machine-unlearning", entity="mtuann", name="Retain_forget_4000_1000")
         # wandb.watch(model, log="all")
         # set name for exp
         # wandb.run.name = f"[5000]"
@@ -120,7 +121,7 @@ class Pipeline():
             
             if test_acc > best_test_acc:
                 best_test_acc = test_acc
-                model_ep_path = f"./models/5000/weights_resnet18_cifar10_5000_ep{epoch}__{train_acc:.4f}__{test_acc:.4f}.pth"
+                model_ep_path = f"./models/cifar10_resnet18_4000_1000/weights_ep{epoch}__{train_acc:.4f}__{test_acc:.4f}.pth"
                 os.makedirs(os.path.dirname(model_ep_path), exist_ok=True)
                 torch.save(model.state_dict(), model_ep_path)
                 logger.info(f"Save model to {model_ep_path}")
