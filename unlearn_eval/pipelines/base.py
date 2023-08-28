@@ -8,6 +8,9 @@ import os
 from utils import accuracy
 logger = logging.getLogger('logger')
 import wandb
+import json
+import time
+
 
 def accuracy(net, loader, DEVICE, mis=True):
     """Return accuracy on a dataset given by the data loader."""
@@ -54,35 +57,61 @@ class Pipeline():
         original_model = self.data_model_set.get_pretrained_model()
         original_model.to(self.DEVICE)
         
-        logger.warning("Original model's performance")
+        # logger.warning("Original model's performance")
         # import IPython
         # IPython.embed()
         # exit(0)
-        logger.warning(f"Retain set accuracy: {accuracy(original_model, retain_loader, self.DEVICE)}")
-        logger.warning(f"Test set accuracy: {accuracy(original_model, test_loader, self.DEVICE)}")
-        logger.warning(f"Forget set accuracy: {accuracy(original_model, forget_loader, self.DEVICE)}")
+        # logger.warning(f"Retain set accuracy: {accuracy(original_model, retain_loader, self.DEVICE)}")
+        # logger.warning(f"Test set accuracy: {accuracy(original_model, test_loader, self.DEVICE)}")
+        # logger.warning(f"Forget set accuracy: {accuracy(original_model, forget_loader, self.DEVICE)}")
         # exit(0)
 
-        logger.warning("Done unlearn")
+        # logger.warning("Done unlearn")
+        start_time = time.time()
+
         ft_model = copy.deepcopy(original_model)
         # Execute the unlearing routine. This might take a few minutes.
         ft_model = unlearning_fn(ft_model, retain_loader, forget_loader, test_loader)
 
+        end_time = time.time()
+        logger.warning(f"Unlearning {unlearning_fn.__name__} took {end_time - start_time} seconds")
         # print(f"Retain set accuracy: {100.0 * accuracy(ft_model, retain_loader):0.1f}%")
         # print(f"Test set accuracy: {100.0 * accuracy(ft_model, test_loader):0.1f}%")
 
-        logger.warning(f"Retain set accuracy: {accuracy(ft_model, retain_loader, self.DEVICE)}")
-        logger.warning(f"Test set accuracy: {accuracy(ft_model, test_loader, self.DEVICE)}")
-        logger.warning(f"Forget set accuracy: {accuracy(ft_model, forget_loader, self.DEVICE)}")
+        # logger.warning(f"Retain set accuracy: {accuracy(ft_model, retain_loader, self.DEVICE)}")
+        # logger.warning(f"Test set accuracy: {accuracy(ft_model, test_loader, self.DEVICE)}")
+        # logger.warning(f"Forget set accuracy: {accuracy(ft_model, forget_loader, self.DEVICE)}")
+
         # return ft_model
         # exit(0)
         # evaluate the unlearned model
-        results = {}
+        results = {
+            "original_model": f"{accuracy(original_model, retain_loader, self.DEVICE)[1]:.4f} / {accuracy(original_model, test_loader, self.DEVICE)[1]:.4f} / {accuracy(original_model, forget_loader, self.DEVICE)[1]:.4f}",
+            "unlearned_model": f"{accuracy(ft_model, retain_loader, self.DEVICE)[1]:.4f} / {accuracy(ft_model, test_loader, self.DEVICE)[1]:.4f} / {accuracy(ft_model, forget_loader, self.DEVICE)[1]:.4f}",
+            "unlearning_time": f"{end_time - start_time:.4f}",
+        }
+
         for evaluator in self._evaluators:
-            results[evaluator.__class__.__name__] = evaluator.eval(ft_model, device=self.DEVICE)
-        print(results)
-        # return results
-        return ft_model
+            # print("Starting evaluation for", evaluator.__class__.__name__)
+            eval_value = None
+            try:
+                eval_value = evaluator.eval(ft_model, device=self.DEVICE)
+                logger.info(f"Evaluation for {evaluator.__class__.__name__} result: {eval_value}")
+            except Exception as e:
+                logger.error(f"Failed to evaluate {evaluator.__class__.__name__}: {e}")
+                eval_value = -1
+            
+            if "LIRA" in evaluator.__class__.__name__:
+                results[evaluator.__class__.__name__] = f'{eval_value.get("auroc", -1):.4f}'
+            elif "SimpleMiaEval" in evaluator.__class__.__name__:
+                results[evaluator.__class__.__name__] = f'{eval_value.mean():.4f}'
+            elif "ZeroRetrainForgetting" in evaluator.__class__.__name__:
+                results[evaluator.__class__.__name__] = f'{eval_value:.4f}'
+            elif "ActivationDistance" in evaluator.__class__.__name__:
+                results["L2_Loss"] = f'{eval_value.get("l2_loss", -1):.4f}'
+                results["Norm_Loss"] = f'{eval_value.get("norm_loss", -1):.4f}'
+
+        return results
     
     def training_retain_from_scratch(self, retain_epochs=100):
         # train from scratch

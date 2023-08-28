@@ -5,3 +5,6 @@ logs/
 models/
 *.npy
 wandb/
+*.csv
+*.json
+*.xlsx

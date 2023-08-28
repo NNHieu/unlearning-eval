@@ -7,6 +7,8 @@ from tqdm import tqdm, trange
 from torch.utils.data import Subset, DataLoader
 from torchvision.models import resnet18
 from .base import BaseEvaluator
+from sklearn.metrics import roc_auc_score
+
 
 class LIRA(BaseEvaluator):
 
@@ -151,4 +153,10 @@ class LIRA(BaseEvaluator):
         forget_out = torch.stack([x[:out_size] for x in forget_out])
         forget_lira = self.compute_lira(forget_score, forget_out)
         test_lira = self.compute_lira(test_score, scores.flatten())
-        return {'forget_lira': forget_lira, 'test_lira': test_lira}
+        # convert to numpy
+        forget_lira = forget_lira.cpu().numpy()
+        test_lira = test_lira.cpu().numpy()
+        y_true = np.concatenate([np.zeros_like(forget_lira), np.ones_like(test_lira)])
+        y_score = np.concatenate([forget_lira, test_lira])
+        auroc = roc_auc_score(y_true, y_score)
+        return {'forget_lira': forget_lira, 'test_lira': test_lira, 'auroc': auroc}

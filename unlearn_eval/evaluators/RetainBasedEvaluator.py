@@ -22,7 +22,7 @@ class ActivationDistance(RetainBaseEvaluator):
             if p.requires_grad:
                 l2_loss += (p - p_base).pow(2).sum().cpu()
                 norm += p.pow(2).sum().cpu()
-        return {"l2_loss": l2_loss, "norm_loss": torch.sqrt(l2_loss/norm)}
+        return {"l2_loss": l2_loss.item(), "norm_loss": torch.sqrt(l2_loss/norm).item()}
 
 
 class ZeroRetrainForgetting(RetainBaseEvaluator):
@@ -64,4 +64,4 @@ class ZeroRetrainForgetting(RetainBaseEvaluator):
             js = 0.5 * (self.kl_divergence(unlearn_forget_prob[idx], avg) + self.kl_divergence(base_forget_prob[idx], avg))
             zrf += js
 
-        return 1 - zrf/len(self.forget_set)
+        return (1 - zrf/len(self.forget_set)).item()
