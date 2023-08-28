@@ -50,7 +50,7 @@ class Cifar10_Resnet18_Set():
         
         self.forget_loader, self.retain_loader, self.test_loader, self.val_loader = self.get_dataloader(data_plit_RNG)
         
-        self._prepare_pretrained_weights(local_path=model_path, download=False)
+        self._prepare_pretrained_weights(local_path=model_path, download=True)
         print("Download pretrained weights")
 
     def _prepare_main_datasets(self, data_root="./data", RNG=42):
@@ -93,6 +93,8 @@ class Cifar10_Resnet18_Set():
         forget_mask = np.zeros(len(self.train_set.targets), dtype=bool)
         forget_mask[forget_idx] = True
         retain_idx = np.arange(forget_mask.size)[~forget_mask]
+        self.forget_idx = forget_idx
+        self.retain_idx = retain_idx
 
         # split train set into a forget and a retain set
         self.forget_set = torch.utils.data.Subset(self.train_set, forget_idx)
