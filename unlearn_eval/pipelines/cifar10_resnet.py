@@ -39,9 +39,15 @@ def accuracy(net, loader, DEVICE):
     return (total_loss/ total_sample, total_acc / total_sample, total_sample)
     # return correct / total
 
-class Cifar10_Resnet18_Set():
 
-    def __init__(self, data_root, data_plit_RNG, index_local_path, model_path, download_index=False) -> None:
+class Cifar10_Resnet18_Set():
+    meta = {
+        "pretrain_weight_url": "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/weights_resnet18_cifar10.pth",
+        "forget_index_url": "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/cifar10/forget_idx.npy",
+        "retrain_weight_url": "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/cifar10/retrain_weights_resnet18_cifar10.pth",
+    }
+
+    def __init__(self, data_root, data_plit_RNG, index_local_path, model_path, retrain_model_path, criterion, download_index=False) -> None:
         self._prepare_main_datasets(data_root=data_root, RNG=data_plit_RNG)
         
         self._generate_forget_set(index_local_path=index_local_path, download_index=download_index)
@@ -51,7 +57,9 @@ class Cifar10_Resnet18_Set():
         self.forget_loader, self.retain_loader, self.test_loader, self.val_loader = self.get_dataloader(data_plit_RNG)
         
         self._prepare_pretrained_weights(local_path=model_path, download=True)
-        print("Download pretrained weights")
+        self._prepare_retrain_weights(local_path=retrain_model_path, download=True)
+        print("Prepare pretrained weights")
+        self.criterion = criterion
 
     def _prepare_main_datasets(self, data_root="./data", RNG=42):
          # download and pre-process CIFAR10
@@ -73,14 +81,11 @@ class Cifar10_Resnet18_Set():
         # self._generate_forget_set()
         
         
-        
     def _generate_forget_set(self, download_index=False, index_local_path="forget_idx.npy"):
         # download the forget and retain index split
         if download_index:
             if not os.path.exists(index_local_path):
-                response = requests.get(
-                    "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/cifar10/" + "forget_idx.npy"
-                )
+                response = requests.get(self.meta['forget_index_url'])
                 open(index_local_path, "wb").write(response.content)
             else:
                 print("Index file already downloaded")
@@ -117,12 +122,14 @@ class Cifar10_Resnet18_Set():
         return forget_loader, retain_loader, test_loader, val_loader
     
     def _download_pretrained_model(self, save_path):
-        response = requests.get(
-                    "https://unlearning-challenge.s3.eu-west-1.amazonaws.com/weights_resnet18_cifar10.pth"
-                )
+        response = requests.get(self.meta['pretrain_weight_url'])
+        open(save_path, "wb").write(response.content)
+    
+    def _download_retrain_model(self, save_path):
+        response = requests.get(self.meta['retrain_weight_url'])
         open(save_path, "wb").write(response.content)
 
-    def _prepare_pretrained_weights(self,local_path = "weights_resnet18_cifar10.pth",  download=False, ):
+    def _prepare_pretrained_weights(self, local_path="weights_resnet18_cifar10.pth",  download=False, ):
         # download pre-trained weights
         if download:
             if not os.path.exists(local_path):
@@ -130,6 +137,15 @@ class Cifar10_Resnet18_Set():
             logger.info(f"Download pre-trained weights from local file: {local_path}")
         logger.info(f"Set weights_pretrained from local file: {local_path}")
         self.weights_pretrained = torch.load(local_path)
+    
+    def _prepare_retrain_weights(self, local_path="retrain_weights_resnet18_cifar10.pth",  download=False):
+        # download pre-trained weights
+        if download:
+            if not os.path.exists(local_path):
+                self._download_retrain_model(save_path=local_path)
+            logger.info(f"Download retrain weights from local file: {local_path}")
+        logger.info(f"Set retrain from local file: {local_path}")
+        self.weights_retrain = torch.load(local_path)
 
     def get_init_model(self):
         logger.info(f"Init model without pretrained weights")
@@ -158,7 +174,9 @@ class Cifar10_Resnet18_Set():
         TODO: download a real retrained model.
         In this version, this function just return the original model.
         '''
-        return self.get_pretrained_model()
+        model = resnet18(weights=None, num_classes=10)
+        model.load_state_dict(self.weights_retrain)
+        return model
 
 
 if __name__ == "__main__":

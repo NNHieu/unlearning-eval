@@ -58,12 +58,17 @@ class SimpleMiaEval(BaseEvaluator):
     """
     Simple MIA Evaluation
     """
-    def __init__(self, forget_loader, test_loader, criterion, n_splits=10, random_state=0):
-        self.forget_loader = forget_loader
-        self.test_loader = test_loader
-        self.criterion = criterion
+    def __init__(self, n_splits=10, random_state=0):
         self.n_splits = n_splits
         self.random_state = random_state
 
     def eval(self, unlearn_model: torch.nn.Module, *, device, **kwargs):
-        return simple_mia(unlearn_model, self.criterion, self.forget_loader, self.test_loader, device, n_splits=self.n_splits, random_state=self.random_state)
+        forget_infosrc = self.infosrc['unlearned']['forget']
+        test_infosrc = self.infosrc['unlearned']['test']
+
+        forget_losses = forget_infosrc.losses
+        test_losses = test_infosrc.losses
+        samples_mia = np.concatenate((test_losses, forget_losses)).reshape((-1, 1))
+        labels_mia = [0] * len(test_losses) + [1] * len(forget_losses)
+        mia_scores = _simple_mia(samples_mia, labels_mia, n_splits=self.n_splits, random_state=self.random_state)
+        return mia_scores

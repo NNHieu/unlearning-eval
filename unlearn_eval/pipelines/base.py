@@ -10,6 +10,7 @@ logger = logging.getLogger('logger')
 import wandb
 import json
 import time
+from unlearn_eval.utils import InformationSource
 
 
 def accuracy(net, loader, DEVICE, mis=True):
@@ -56,7 +57,11 @@ class Pipeline():
         # print(next(iter(forget_loader)))
         original_model = self.data_model_set.get_pretrained_model()
         original_model.to(self.DEVICE)
-        
+        retrained_model = self.data_model_set.get_retrained_model()
+        retrained_model.to(self.DEVICE)
+        dummy_model = self.data_model_set.get_init_model()
+        dummy_model.to(self.DEVICE)
+
         # logger.warning("Original model's performance")
         # import IPython
         # IPython.embed()
@@ -69,9 +74,23 @@ class Pipeline():
         # logger.warning("Done unlearn")
         start_time = time.time()
 
-        ft_model = copy.deepcopy(original_model)
+        unlearned_model = copy.deepcopy(original_model)
         # Execute the unlearing routine. This might take a few minutes.
-        ft_model = unlearning_fn(ft_model, retain_loader, forget_loader, test_loader)
+        unlearned_model = unlearning_fn(unlearned_model, retain_loader, forget_loader, test_loader)
+
+        # Prepare the information sources
+        unlearn_forget_infosrc = InformationSource(unlearned_model, forget_loader, criterion=self.data_model_set.criterion, device=self.DEVICE)
+        unlearn_test_infosrc = InformationSource(unlearned_model, test_loader, criterion=self.data_model_set.criterion, device=self.DEVICE)
+        unlearn_retain_infosrc = InformationSource(unlearned_model, retain_loader, criterion=self.data_model_set.criterion, device=self.DEVICE)
+        original_forget_infosrc = InformationSource(original_model, forget_loader, criterion=self.data_model_set.criterion, device=self.DEVICE)
+        original_test_infosrc = InformationSource(original_model, test_loader, criterion=self.data_model_set.criterion, device=self.DEVICE)
+        original_retain_infosrc = InformationSource(original_model, retain_loader, criterion=self.data_model_set.criterion, device=self.DEVICE)
+        retrain_forget_infosrc = InformationSource(retrained_model, forget_loader, criterion=self.data_model_set.criterion, device=self.DEVICE)
+        retrain_test_infosrc = InformationSource(retrained_model, test_loader, criterion=self.data_model_set.criterion, device=self.DEVICE)
+        retrain_retain_infosrc = InformationSource(retrained_model, retain_loader, criterion=self.data_model_set.criterion, device=self.DEVICE)
+        dummy_forget_infosrc = InformationSource(dummy_model, forget_loader, criterion=self.data_model_set.criterion, device=self.DEVICE)
+        dummy_test_infosrc = InformationSource(dummy_model, test_loader, criterion=self.data_model_set.criterion, device=self.DEVICE)
+        dummy_retain_infosrc = InformationSource(dummy_model, retain_loader, criterion=self.data_model_set.criterion, device=self.DEVICE)
 
         end_time = time.time()
         logger.warning(f"Unlearning {unlearning_fn.__name__} took {end_time - start_time} seconds")
@@ -86,16 +105,40 @@ class Pipeline():
         # exit(0)
         # evaluate the unlearned model
         results = {
-            "original_model": f"{accuracy(original_model, retain_loader, self.DEVICE)[1]:.4f} / {accuracy(original_model, test_loader, self.DEVICE)[1]:.4f} / {accuracy(original_model, forget_loader, self.DEVICE)[1]:.4f}",
-            "unlearned_model": f"{accuracy(ft_model, retain_loader, self.DEVICE)[1]:.4f} / {accuracy(ft_model, test_loader, self.DEVICE)[1]:.4f} / {accuracy(ft_model, forget_loader, self.DEVICE)[1]:.4f}",
+            "original_model": f"{original_retain_infosrc.accuracy:.4f} / {original_test_infosrc.accuracy:.4f} / {original_forget_infosrc.accuracy:.4f}",
+            "unlearned_model": f"{unlearn_retain_infosrc.accuracy:.4f} / {unlearn_test_infosrc.accuracy:.4f} / {unlearn_forget_infosrc.accuracy:.4f}",
             "unlearning_time": f"{end_time - start_time:.4f}",
+        }
+
+        infosrc_dict = {
+            "original": {
+                "forget": original_forget_infosrc,
+                "test": original_test_infosrc,
+                "retain": original_retain_infosrc
+            },
+            "unlearned": {
+                "forget": unlearn_forget_infosrc,
+                "test": unlearn_test_infosrc,
+                "retain": unlearn_retain_infosrc
+            },
+            "retrained": {
+                "forget": retrain_forget_infosrc,
+                "test": retrain_test_infosrc,
+                "retain": retrain_retain_infosrc
+            },
+            "dummy": {
+                "forget": dummy_forget_infosrc,
+                "test": dummy_test_infosrc,
+                "retain": dummy_retain_infosrc
+            }
         }
 
         for evaluator in self._evaluators:
             # print("Starting evaluation for", evaluator.__class__.__name__)
+            evaluator.set_inforsrc(infosrc_dict)
             eval_value = None
             try:
-                eval_value = evaluator.eval(ft_model, device=self.DEVICE)
+                eval_value = evaluator.eval(unlearned_model, device=self.DEVICE)
                 logger.info(f"Evaluation for {evaluator.__class__.__name__} result: {eval_value}")
             except Exception as e:
                 logger.error(f"Failed to evaluate {evaluator.__class__.__name__}: {e}")
