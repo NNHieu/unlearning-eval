@@ -31,9 +31,10 @@ class ZeroRetrainForgetting(BaseEvaluator):
     In other words: Measure the change in accuracy on the unlearned data after retraining the model without the data to be unlearned 
     Used for classification neural network only
     """
-    def __init__(self):
+    def __init__(self, ref_model_name='dummy'):
         super().__init__()
         self.norm = False
+        self.ref_model_name = ref_model_name
     
     # Set norm to true if the classification do not return probabilities of each class (0 < class_prob < 1, sum(class_prob) = 1)
     def set_norm(self, value:bool):
@@ -45,7 +46,7 @@ class ZeroRetrainForgetting(BaseEvaluator):
     
     @torch.no_grad()
     def eval(self, unlearn_model: nn.Module, device='cuda'):
-        base_forget_infosrc = self.infosrc['dummy']['forget']
+        base_forget_infosrc = self.infosrc[self.ref_model_name]['forget']
         unlearn_forget_infosrc = self.infosrc['unlearned']['forget']
         
         unlearn_forget_prob = unlearn_forget_infosrc.probs

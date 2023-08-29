@@ -78,7 +78,7 @@ def main():
   evaluators = [
       ClassificationAccuracyEvaluator(),
       ActivationDistance(retrained_model),
-      ZeroRetrainForgetting(),
+      ZeroRetrainForgetting(ref_model_name="dummy"),
       SimpleMiaEval(n_splits=10, random_state=0)
   ]
   # ---------------- End Init evaluators ----------------
