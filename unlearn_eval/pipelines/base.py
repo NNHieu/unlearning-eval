@@ -53,7 +53,7 @@ class Pipeline():
         self._evaluators = evaluators
 
     def eval(self, unlearning_fn):
-        forget_loader, retain_loader, test_loader, val_loader = self.data_model_set.get_dataloader(self.RNG)
+        forget_loader, retain_loader, test_loader, val_loader, train_loader = self.data_model_set.get_dataloader(self.RNG)
         # print(next(iter(forget_loader)))
         original_model = self.data_model_set.get_pretrained_model()
         original_model.to(self.DEVICE)
@@ -76,7 +76,7 @@ class Pipeline():
 
         unlearned_model = copy.deepcopy(original_model)
         # Execute the unlearing routine. This might take a few minutes.
-        unlearned_model = unlearning_fn(unlearned_model, retain_loader, forget_loader, test_loader)
+        unlearned_model = unlearning_fn(unlearned_model, retain_loader, forget_loader, test_loader, device=self.DEVICE)
 
         # Prepare the information sources
         unlearn_forget_infosrc = InformationSource(unlearned_model, forget_loader, criterion=self.data_model_set.criterion, device=self.DEVICE)
@@ -143,6 +143,7 @@ class Pipeline():
             except Exception as e:
                 logger.error(f"Failed to evaluate {evaluator.__class__.__name__}: {e}")
                 eval_value = -1
+                raise e
             
             if "LIRA" in evaluator.__class__.__name__:
                 results[evaluator.__class__.__name__] = f'{eval_value.get("auroc", -1):.4f}'

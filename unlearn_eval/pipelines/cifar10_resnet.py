@@ -54,7 +54,7 @@ class Cifar10_Resnet18_Set():
         
         print("Done generate forget set")
         
-        self.forget_loader, self.retain_loader, self.test_loader, self.val_loader = self.get_dataloader(data_plit_RNG)
+        self.forget_loader, self.retain_loader, self.test_loader, self.val_loader, self.train_loader = self.get_dataloader(data_plit_RNG)
         
         self._prepare_pretrained_weights(local_path=model_path, download=True)
         self._prepare_retrain_weights(local_path=retrain_model_path, download=True)
@@ -119,9 +119,9 @@ class Cifar10_Resnet18_Set():
         retain_loader = DataLoader(
             self.retain_set, batch_size=batch_size, shuffle=True, num_workers=2, generator=RNG
         )
-        return forget_loader, retain_loader, test_loader, val_loader
+        return forget_loader, retain_loader, test_loader, val_loader, train_loader
     
-    def _download_pretrained_model(self, save_path):
+    def _download_pretrained_model(self, save_path):    
         response = requests.get(self.meta['pretrain_weight_url'])
         open(save_path, "wb").write(response.content)
     
